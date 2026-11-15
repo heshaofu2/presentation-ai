@@ -3,7 +3,10 @@ import { SlateElement, type SlateElementProps } from "platejs/static";
 import { cn } from "@/lib/utils";
 
 export function PresentationParagraphElementStatic(props: SlateElementProps) {
-  const elementTag = props.element.listStyleType ? "div" : "p";
+  const hasBlockChildren = props.element.children.some((child) =>
+    props.editor.api.isBlock(child),
+  );
+  const elementTag = props.element.listStyleType || hasBlockChildren ? "div" : "p";
 
   return (
     <SlateElement
