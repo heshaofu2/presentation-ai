@@ -9,6 +9,7 @@ import StaticPresentationEditor from "@/components/notebook/presentation/editor/
 import { slideSignature } from "@/components/notebook/presentation/editor/utils/slideSignature";
 import { uploadFiles } from "@/hooks/globals/useUploadthing";
 import { getPresentationImageGenerationKey } from "@/lib/presentation/image-generation";
+import { getStoredThumbnailUrl, type ThumbnailStorage } from "@/lib/presentation/thumbnail";
 import { usePresentationState } from "@/states/presentation-state";
 
 const THUMBNAIL_WIDTH = 1280;
@@ -114,7 +115,11 @@ async function captureSlideThumbnailBlob(
   return blob;
 }
 
-export function PresentationThumbnailCaptureManager() {
+export function PresentationThumbnailCaptureManager({
+  storage,
+}: {
+  storage: NonNullable<ThumbnailStorage>;
+}) {
   const queryClient = useQueryClient();
   const captureElementRef = useRef<HTMLDivElement | null>(null);
   const activeCaptureKeyRef = useRef<string | null>(null);
@@ -165,6 +170,7 @@ export function PresentationThumbnailCaptureManager() {
     }
 
     if (
+      storage === "uploadthing" &&
       captureKey &&
       thumbnailUrl &&
       initializedPresentationIdRef.current !== currentPresentationId
@@ -172,7 +178,7 @@ export function PresentationThumbnailCaptureManager() {
       initializedPresentationIdRef.current = currentPresentationId;
       completedCaptureKeyRef.current = captureKey;
     }
-  }, [captureKey, currentPresentationId, thumbnailUrl]);
+  }, [captureKey, currentPresentationId, storage, thumbnailUrl]);
 
   useEffect(() => {
     if (!currentPresentationId) {
@@ -249,6 +255,7 @@ export function PresentationThumbnailCaptureManager() {
             stateAfterCapture.currentPresentationId !==
               expectedPresentationId ||
             stateAfterCapture.slides[0]?.id !== expectedSlideId ||
+            slideSignature(stateAfterCapture.slides[0]) !== firstSlideSignature ||
             isPresentationGenerationPending(stateAfterCapture) ||
             hasActiveImageGenerationForSlide(
               expectedPresentationId,
@@ -258,19 +265,25 @@ export function PresentationThumbnailCaptureManager() {
             return;
           }
 
-          const file = new File(
-            [blob],
-            `presentation-thumbnail-${expectedPresentationId}.png`,
-            { type: "image/png" },
-          );
-
-          const uploadedFiles = await uploadFiles("imageUploader", {
-            files: [file],
-          });
-
-          const uploadedUrl = uploadedFiles?.[0]?.ufsUrl;
-          if (!uploadedUrl) {
-            throw new Error("Failed to upload presentation thumbnail");
+          let uploadedUrl: string | undefined;
+          if (storage === "s3") {
+            const response = await fetch(getStoredThumbnailUrl(expectedPresentationId), {
+              method: "POST",
+              body: blob,
+              headers: { "Content-Type": "image/png" },
+            });
+            if (!response.ok) throw new Error("Failed to store presentation thumbnail");
+          } else {
+            const file = new File(
+              [blob],
+              `presentation-thumbnail-${expectedPresentationId}.png`,
+              { type: "image/png" },
+            );
+            const uploadedFiles = await uploadFiles("imageUploader", {
+              files: [file],
+            });
+            uploadedUrl = uploadedFiles?.[0]?.ufsUrl;
+            if (!uploadedUrl) throw new Error("Failed to upload presentation thumbnail");
           }
 
           const stateAfterUpload = usePresentationState.getState();
@@ -282,13 +295,12 @@ export function PresentationThumbnailCaptureManager() {
             return;
           }
 
-          const result = await updatePresentationThumbnailUrl({
-            id: expectedPresentationId,
-            thumbnailUrl: uploadedUrl,
-          });
-
-          if (!result.success) {
-            throw new Error(result.message);
+          if (uploadedUrl) {
+            const result = await updatePresentationThumbnailUrl({
+              id: expectedPresentationId,
+              thumbnailUrl: uploadedUrl,
+            });
+            if (!result.success) throw new Error(result.message);
           }
 
           if (
@@ -296,7 +308,7 @@ export function PresentationThumbnailCaptureManager() {
             expectedPresentationId
           ) {
             completedCaptureKeyRef.current = expectedCaptureKey;
-            setThumbnailUrl(uploadedUrl);
+            if (uploadedUrl) setThumbnailUrl(uploadedUrl);
             void Promise.all([
               queryClient.invalidateQueries({
                 queryKey: ["presentation", expectedPresentationId],
@@ -326,6 +338,7 @@ export function PresentationThumbnailCaptureManager() {
     queryClient,
     rootImageGeneration,
     setThumbnailUrl,
+    storage,
   ]);
 
   if (!firstSlide) {

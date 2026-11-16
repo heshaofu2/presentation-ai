@@ -1,0 +1,66 @@
+name: cluade-gamma
+
+services:
+  app:
+    build: .
+    init: true
+    env_file: .env.docker
+    ports:
+      - "127.0.0.1:${PRESENTATION_PORT:-3003}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env.docker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.docker}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env.docker}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - presentation-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env.docker}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env.docker}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env.docker}
+    post_start:
+      - command:
+          - /bin/sh
+          - -ec
+          - |
+            for attempt in $$(seq 1 30); do
+              if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; then
+                mc alias set local http://127.0.0.1:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+                mc mb --ignore-existing "local/$$S3_BUCKET"
+                exit 0
+              fi
+              sleep 1
+            done
+            exit 1
+    healthcheck:
+      test: ["CMD-SHELL", "mc stat \"local/$$S3_BUCKET\" >/dev/null 2>&1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - thumbnail-data:/data
+    restart: unless-stopped
+
+volumes:
+  thumbnail-data:
+  presentation-data:
+    external: true
+    name: cluade-gamma-presentation-postgres-data

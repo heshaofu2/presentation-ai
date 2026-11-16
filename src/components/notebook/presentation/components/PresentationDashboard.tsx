@@ -101,6 +101,7 @@ type PresentationFileItem = {
   id: string;
   name: string;
   thumbnailUrl: string | null;
+  storedThumbnailUrl: string | null;
   modified: string;
   modifiedAt: Date;
   isFavorited: boolean;
@@ -114,6 +115,34 @@ type PresentationFileItem = {
   onDelete: () => Promise<boolean>;
   onDuplicate: () => void;
 };
+
+function FileThumbnail({
+  file,
+  className,
+  children,
+}: {
+  file: PresentationFileItem;
+  className: string;
+  children: ReactNode;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const src =
+    file.storedThumbnailUrl && file.storedThumbnailUrl !== failedUrl
+      ? file.storedThumbnailUrl
+      : file.thumbnailUrl;
+
+  return src ? (
+    <Image
+      unoptimized
+      width={400}
+      height={300}
+      src={src}
+      alt={file.name}
+      onError={src === file.storedThumbnailUrl ? () => setFailedUrl(src) : undefined}
+      className={className}
+    />
+  ) : children;
+}
 
 type PresentationPage = Awaited<ReturnType<typeof fetchPresentations>>;
 type PresentationsInfiniteData = InfiniteData<PresentationPage, number>;
@@ -776,20 +805,14 @@ function PresentationProjectFilesSection({
                     className="absolute inset-0 z-10 cursor-pointer rounded-xl focus-visible:outline-none"
                   />
                   <div className="pointer-events-none relative z-20 aspect-video w-full overflow-hidden bg-muted/30">
-                    {file.thumbnailUrl ? (
-                      <Image
-                        unoptimized
-                        width={400}
-                        height={300}
-                        src={file.thumbnailUrl}
-                        alt={file.name}
-                        className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    ) : (
+                    <FileThumbnail
+                      file={file}
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    >
                       <div className="flex size-full items-center justify-center bg-accent/10">
                         <Folder className="size-12 text-muted-foreground/40" />
                       </div>
-                    )}
+                    </FileThumbnail>
                     <div className="absolute inset-0 bg-linear-to-t from-black/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
                   <div
@@ -842,20 +865,14 @@ function PresentationProjectFilesSection({
                     className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
                   />
                   <div className="pointer-events-none relative z-20 flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                    {file.thumbnailUrl ? (
-                      <Image
-                        unoptimized
-                        width={400}
-                        height={300}
-                        src={file.thumbnailUrl}
-                        alt={file.name}
-                        className="h-12 w-20 shrink-0 rounded-md border border-border object-cover"
-                      />
-                    ) : (
+                    <FileThumbnail
+                      file={file}
+                      className="h-12 w-20 shrink-0 rounded-md border border-border object-cover"
+                    >
                       <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-md border border-border bg-primary/10 text-primary">
                         <Folder className="size-4" />
                       </div>
-                    )}
+                    </FileThumbnail>
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-start gap-2">
                         <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
@@ -1315,6 +1332,7 @@ export function PresentationDashboard() {
     id: item.id,
     name: item.title || "Untitled",
     thumbnailUrl: item.thumbnailUrl,
+    storedThumbnailUrl: item.storedThumbnailUrl,
     modified: formatDistanceToNow(new Date(item.updatedAt), {
       addSuffix: true,
     }),

@@ -15,6 +15,7 @@ import { usePresentModeOrientation } from "@/hooks/presentation/usePresentModeOr
 import { useSlideChangeWatcher } from "@/hooks/presentation/useSlideChangeWatcher";
 import { useSlideContentScaling } from "@/hooks/presentation/useSlideContentScaling";
 import { useSlideOperations } from "@/hooks/presentation/useSlideOperations";
+import { type ThumbnailStorage } from "@/lib/presentation/thumbnail";
 import { usePresentationState } from "@/states/presentation-state";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
@@ -27,11 +28,13 @@ import { SlideItem } from "./SlideItem";
 interface SlidesContainerProps {
   isGeneratingPresentation: boolean;
   isReadOnly?: boolean;
+  thumbnailStorage: ThumbnailStorage;
 }
 
 export const SlidesContainer = ({
   isGeneratingPresentation,
   isReadOnly = false,
+  thumbnailStorage,
 }: SlidesContainerProps) => {
   const isPresenting = usePresentationState((s) => s.isPresenting);
   const isPresentingLoading = usePresentationState(
@@ -103,7 +106,9 @@ export const SlidesContainer = ({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {!isReadOnly && <PresentationThumbnailCaptureManager />}
+        {!isReadOnly && thumbnailStorage && (
+          <PresentationThumbnailCaptureManager storage={thumbnailStorage} />
+        )}
         <PresentModeHeader
           presentationTitle={currentPresentationTitle}
           showHeader={isPresenting && shouldShowExitHeader}

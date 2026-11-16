@@ -3,9 +3,11 @@
 import "server-only";
 
 import { logger } from "@/lib/observability/server/logger";
+import { getStoredThumbnailUrl } from "@/lib/presentation/thumbnail";
 import { DocumentType, type Prisma } from "@/prisma/client";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
+import { isObjectStorageConfigured } from "@/server/object-storage";
 
 const ITEMS_PER_PAGE = 10;
 const PRESENTATION_DOCUMENT_TYPES = [DocumentType.PRESENTATION] as const;
@@ -95,6 +97,7 @@ export async function fetchPresentations(
         title: item.title,
         type: item.type,
         thumbnailUrl: item.thumbnailUrl,
+        storedThumbnailUrl: isObjectStorageConfigured ? getStoredThumbnailUrl(item.id) : null,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         isOwnedByCurrentUser: true,

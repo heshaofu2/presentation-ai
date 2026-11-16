@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import PresentationPage from "@/components/presentation/core/PresentationPage";
+import { isObjectStorageConfigured } from "@/server/object-storage";
 import {
   getDocumentAccessForUser,
   getSessionIdentity,
@@ -19,5 +20,16 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     notFound();
   }
 
-  return <PresentationPage readOnly={!access.canEdit} />;
+  return (
+    <PresentationPage
+      readOnly={!access.canEdit}
+      thumbnailStorage={
+        isObjectStorageConfigured
+          ? "s3"
+          : process.env.UPLOADTHING_TOKEN?.trim()
+            ? "uploadthing"
+            : null
+      }
+    />
+  );
 }

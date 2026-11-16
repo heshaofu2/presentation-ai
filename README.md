@@ -163,6 +163,41 @@ Before you begin, ensure you have the following installed:
 
    Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Run locally with Docker
+
+Copy `.env.docker.example` to `.env.docker`. Set the database password in both
+`POSTGRES_PASSWORD` and `DATABASE_URL`, and set `NEXTAUTH_SECRET`. The app uses
+`db:5432` to reach PostgreSQL from inside Docker.
+
+For a new database, create the volume and initialize the schema once:
+
+```bash
+docker volume create cluade-gamma-presentation-postgres-data
+docker compose --env-file .env.docker run --rm --build app pnpm exec prisma db push
+```
+
+If you already have that volume, stop the previous PostgreSQL container and use
+the database credentials it was initialized with. Then start the stack:
+
+```bash
+docker compose --env-file .env.docker up -d --build
+```
+
+Open [http://localhost:3003](http://localhost:3003). Google sign-in requires valid
+OAuth credentials in `.env.docker`. The Compose stack includes a private MinIO
+bucket for automatic presentation thumbnails. Set `MINIO_ROOT_PASSWORD` before
+starting the stack. To use an existing S3-compatible bucket for thumbnails, set
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY` in
+`.env.docker`. Set `S3_REGION` if the endpoint requires a different region and
+`S3_FORCE_PATH_STYLE=false` if it requires virtual-hosted bucket addresses.
+Move any existing thumbnail objects to the new bucket before switching if you
+want to keep them. Other file uploads use `UPLOADTHING_TOKEN`.
+
+The app runs in development mode inside Docker. Rebuild the app image after
+source changes. Use
+`docker compose --env-file .env.docker down` to remove the containers and retain
+the database and thumbnail volumes.
+
 ### Available Scripts
 
 ```bash

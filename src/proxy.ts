@@ -17,9 +17,11 @@ export async function proxy(request: NextRequest) {
 
   // If user is not authenticated and trying to access a protected route, redirect to sign-in
   if (!session && !isAuthPage && !request.nextUrl.pathname.startsWith("/api")) {
+    // Use the browser's origin when the app is served through a forwarded port.
+    const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     return NextResponse.redirect(
       new URL(
-        `/auth/signin?callbackUrl=${encodeURIComponent(request.url)}`,
+        `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`,
         request.url,
       ),
     );

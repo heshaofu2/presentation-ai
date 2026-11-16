@@ -20,6 +20,7 @@ import { usePresentationAutoScroll } from "@/hooks/presentation/usePresentationA
 import { usePresentationData } from "@/hooks/presentation/usePresentationData";
 import { usePresentationHistory } from "@/hooks/presentation/usePresentationHistory";
 import { type ThemeProperties } from "@/lib/presentation/themes";
+import { type ThumbnailStorage } from "@/lib/presentation/thumbnail";
 import { cn } from "@/lib/utils";
 import { usePresentationRecordingState } from "@/states/presentation-recording-state";
 import {
@@ -38,8 +39,10 @@ import { PresentationCompletionFeedback } from "./PresentationCompletionFeedback
 
 export default function PresentationPage({
   readOnly = false,
+  thumbnailStorage,
 }: {
   readOnly?: boolean;
+  thumbnailStorage: ThumbnailStorage;
 }) {
   const params = useParams();
   const id = params.id as string;
@@ -222,6 +225,7 @@ export default function PresentationPage({
               <div className="mx-auto flex min-w-0 flex-1 flex-col space-y-8 px-3 pt-8 sm:px-0 sm:pt-16 lg:max-w-[95%] xl:max-w-[90%]">
                 <div className="space-y-8">
                   <SlidesContainer
+                    thumbnailStorage={thumbnailStorage}
                     isGeneratingPresentation={isGeneratingPresentation}
                     isReadOnly={effectiveReadOnly}
                   />
