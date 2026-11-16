@@ -1,5 +1,11 @@
 import { type PlateSlide } from "@/components/notebook/presentation/utils/parser";
 
+export type ThumbnailStorage = "s3" | "uploadthing" | null;
+
+export function getStoredThumbnailUrl(id: string) {
+  return `/api/presentation/${encodeURIComponent(id)}/thumbnail`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
